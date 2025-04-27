@@ -2,47 +2,89 @@
 Author: David Megli
 Date: 2025-04-28
 '''
-import yaml
+import os
+import argparse
 import torch
-from torch import optim
-import torch.nn as nn
-from torchvision import models
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
 
-from models.model import SimpleMLP
+from utils import load_config, get_model, get_optimizer, get_loss
+from trainer import Trainer
+from datetime import datetime
+import yaml
 
-def load_config(config_path: str):
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
-    return config
+def main():
+    # Argument parser per la configurazione
+    parser = argparse.ArgumentParser(description="Training Script")
+    parser.add_argument('--config', type=str, default="config_mlp.yaml", help="Path to config file.")
+    args = parser.parse_args()
 
-def get_model(name: str, num_classes: int, model_params: dict = {}):
-    if name.lower() == "simple_mlp":
-        return SimpleMLP(
-            input_dim=model_params.get("input_dim", 784),
-            hidden_dim=model_params.get("hidden_dim", 256),
-            num_classes=num_classes
-        )
+    # Load config
+    config = load_config(args.config)
 
-    elif name.lower() == "resnet18":
-        model = models.resnet18(pretrained=False)
-        model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
-        return model
+    # Save config usato nella output dir
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.makedirs(config['output_dir'], exist_ok=True)
+    config_save_path = os.path.join(config['output_dir'], f"used_config_{timestamp}.yaml")
+    with open(config_save_path, 'w') as f:
+        yaml.dump(config, f)
+
+    # Setup dataset
+    if config['model_name'].lower() == "simple_mlp":
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: x.view(-1))  # Flatten
+        ])
+        train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+        val_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+
+    elif config['model_name'].lower() == "resnet18":
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+        ])
+        train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
 
     else:
-        raise ValueError(f"Model '{name}' not supported.")
+        raise ValueError(f"No dataset setup for model {config['model_name']}")
 
-def get_optimizer(optimizer_name: str, model_params, lr: float):
-    if optimizer_name.lower() == "adam":
-        return optim.Adam(model_params, lr=lr)
-    elif optimizer_name.lower() == "sgd":
-        return optim.SGD(model_params, lr=lr, momentum=0.9)
-    else:
-        raise ValueError(f"Optimizer '{optimizer_name}' not supported.")
+    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=config['batch_size'])
 
-def get_loss(loss_name: str):
-    if loss_name.lower() == "crossentropy":
-        return nn.CrossEntropyLoss()
-    elif loss_name.lower() == "mse":
-        return nn.MSELoss()
-    else:
-        raise ValueError(f"Loss '{loss_name}' not supported.")
+    # Model
+    model = get_model(config['model_name'], config['num_classes'], config.get('model_params', {}))
+
+    # Loss
+    criterion = get_loss(config['loss'])
+
+    # Optimizer
+    optimizer = get_optimizer(config['optimizer'], model.parameters(), config['learning_rate'])
+
+    # Scheduler (se richiesto)
+    scheduler = None
+    if config.get('use_scheduler', False):
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=config.get('scheduler_step', 10), gamma=config.get('scheduler_gamma', 0.1))
+
+    # Trainer
+    trainer = Trainer(
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        criterion=criterion,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+        output_dir=config['output_dir'],
+        max_epochs=config['max_epochs'],
+        patience=config['patience'],
+        mixed_precision=config['mixed_precision'],
+        project_name=config['project_name'],
+        use_wandb=config['use_wandb'],
+        run_name=config['run_name'],
+    )
+
+    trainer.train()
+
+if __name__ == "__main__":
+    main()
