@@ -5,6 +5,7 @@ Date: 2025-04-28
 import yaml
 import torch
 from torch import optim
+import torch.nn as nn
 from torchvision import models
 
 from models.model import SimpleMLP
@@ -37,3 +38,11 @@ def get_optimizer(optimizer_name: str, model_params, lr: float):
         return optim.SGD(model_params, lr=lr, momentum=0.9)
     else:
         raise ValueError(f"Optimizer '{optimizer_name}' not supported.")
+
+def get_loss(loss_name: str):
+    if loss_name.lower() == "crossentropy":
+        return nn.CrossEntropyLoss()
+    elif loss_name.lower() == "mse":
+        return nn.MSELoss()
+    else:
+        raise ValueError(f"Loss '{loss_name}' not supported.")
