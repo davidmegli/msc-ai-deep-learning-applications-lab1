@@ -12,20 +12,33 @@ from trainer import Trainer
 
 def main():
     # Load config
-    config = load_config("config.yaml")
+    config = load_config("config_mlp.yaml")  # Load config MLP
 
-    # Dataset (FakeData per ora, puoi cambiare)
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-    ])
-    train_dataset = datasets.FakeData(transform=transform)
-    val_dataset = datasets.FakeData(transform=transform)
+    # Setup dataset e transform
+    if config['model_name'].lower() == "simple_mlp":
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: x.view(-1))  # Flatten MNIST (28*28)
+        ])
+        train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+        val_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+
+    elif config['model_name'].lower() == "resnet18":
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+        ])
+        train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+
+    else:
+        raise ValueError(f"No dataset setup for model {config['model_name']}")
 
     train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=config['batch_size'])
 
     # Model
-    model = get_model(config['model_name'], config['num_classes'])
+    model = get_model(config['model_name'], config['num_classes'], config.get('model_params', {}))
 
     # Loss
     criterion = torch.nn.CrossEntropyLoss()
@@ -40,7 +53,7 @@ def main():
         val_loader=val_loader,
         criterion=criterion,
         optimizer=optimizer,
-        scheduler=None,  # For now
+        scheduler=None,
         device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
         output_dir=config['output_dir'],
         max_epochs=config['max_epochs'],
