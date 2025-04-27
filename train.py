@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
-from utils import load_config, get_model, get_optimizer, get_loss
+from utils import load_config, get_model, get_optimizer, get_loss, get_scheduler
 from trainer import Trainer
 from datetime import datetime
 import yaml
@@ -61,10 +61,15 @@ def main():
     # Optimizer
     optimizer = get_optimizer(config['optimizer'], model.parameters(), config['learning_rate'])
 
-    # Scheduler (se richiesto)
+    # Scheduler
     scheduler = None
     if config.get('use_scheduler', False):
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=config.get('scheduler_step', 10), gamma=config.get('scheduler_gamma', 0.1))
+        scheduler = get_scheduler(
+            scheduler_name=config['scheduler_name'],
+            optimizer=optimizer,
+            scheduler_params=config.get('scheduler_params', {})
+        )
+
 
     # Trainer
     trainer = Trainer(
