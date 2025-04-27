@@ -9,6 +9,7 @@ import torch
 import wandb
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+import time
 
 class Trainer:
     def __init__(self, model, train_loader, val_loader, criterion, optimizer, scheduler,
@@ -49,6 +50,7 @@ class Trainer:
             self.load_checkpoint()
 
     def save_checkpoint(self, epoch):
+        """Save model checkpoint with epoch and timestamp."""
         checkpoint = {
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
@@ -56,7 +58,13 @@ class Trainer:
             'epoch': epoch,
             'best_loss': self.best_loss
         }
-        torch.save(checkpoint, self.checkpoint_path)
+        timestamp = time.strftime("%Y-%m-%d-%H-%M-%S")
+        filename = f'checkpoint_epoch_{epoch}_{timestamp}.pth'
+        torch.save(checkpoint, os.path.join(self.output_dir, filename))
+        torch.save(checkpoint, os.path.join(self.output_dir, 'last_checkpoint.pth'))
+
+        self.cleanup_old_checkpoints(max_keep=5)
+
 
     def load_checkpoint(self):
         checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
@@ -66,6 +74,26 @@ class Trainer:
             self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
         self.start_epoch = checkpoint['epoch'] + 1
         self.best_loss = checkpoint['best_loss']
+
+    def cleanup_old_checkpoints(self, max_keep=0):
+        """Delete old checkpoints, keeping only the last `max_keep`."""
+        if max_keep == 0:
+            return
+
+        checkpoint_files = sorted(
+            [f for f in os.listdir(self.output_dir)
+            if f.startswith('checkpoint_epoch') and f.endswith('.pth')],
+            key=lambda x: int(x.split('_')[2])  # Assuming filename like checkpoint_epoch_{epoch}_{timestamp}.pth
+        )
+
+        if len(checkpoint_files) > max_keep:
+            files_to_remove = checkpoint_files[:-max_keep]
+            for f in files_to_remove:
+                try:
+                    os.remove(os.path.join(self.output_dir, f))
+                    print(f"[INFO] Removed old checkpoint: {f}")
+                except Exception as e:
+                    print(f"[WARNING] Could not remove {f}: {e}")
 
     def train(self):
         for epoch in range(self.start_epoch, self.max_epochs):
