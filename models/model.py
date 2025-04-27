@@ -16,4 +16,4 @@ class SimpleMLP(nn.Module):
         )
 
     def forward(self, x):
-        return self.net(x.view(x.size(0), -1))
+        return self.net(x.view(x.size(0), -1))  # Flatten
