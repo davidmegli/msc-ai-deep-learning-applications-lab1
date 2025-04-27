@@ -46,3 +46,32 @@ def get_loss(loss_name: str):
         return nn.MSELoss()
     else:
         raise ValueError(f"Loss '{loss_name}' not supported.")
+    
+def get_scheduler(scheduler_name: str, optimizer, scheduler_params: dict):
+    if scheduler_name.lower() == "steplr":
+        return optim.lr_scheduler.StepLR(
+            optimizer,
+            step_size=scheduler_params.get('step_size', 10),
+            gamma=scheduler_params.get('gamma', 0.1)
+        )
+    elif scheduler_name.lower() == "reducelronplateau":
+        return optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode=scheduler_params.get('mode', 'min'),
+            factor=scheduler_params.get('factor', 0.1),
+            patience=scheduler_params.get('patience', 10),
+            verbose=True
+        )
+    elif scheduler_name.lower() == "cosineannealinglr":
+        return optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=scheduler_params.get('T_max', 10),
+            eta_min=scheduler_params.get('eta_min', 0)
+        )
+    elif scheduler_name.lower() == "exponentiallr":
+        return optim.lr_scheduler.ExponentialLR(
+            optimizer,
+            gamma=scheduler_params.get('gamma', 0.95)
+        )
+    else:
+        raise ValueError(f"Scheduler '{scheduler_name}' not supported.")
