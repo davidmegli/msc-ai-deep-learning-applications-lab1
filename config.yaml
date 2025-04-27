@@ -1,0 +1,24 @@
+# config.yaml
+project_name: "my_project"
+run_name: "baseline_run"
+output_dir: "./output"
+
+# Training
+max_epochs: 100
+batch_size: 64
+learning_rate: 0.001
+patience: 10
+mixed_precision: true
+
+# Model
+model_name: "resnet18"
+num_classes: 10
+
+# Optimizer
+optimizer: "adam"
+
+# Scheduler
+use_scheduler: false
+
+# WandB
+use_wandb: true
