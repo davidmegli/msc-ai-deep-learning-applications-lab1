@@ -1,0 +1,28 @@
+# config_mlp.yaml
+
+project_name: "mlp_mnist_project"
+run_name: "mlp_mnist_run"
+output_dir: "./output_mlp"
+
+# Training
+max_epochs: 20
+batch_size: 128
+learning_rate: 0.001
+patience: 5
+mixed_precision: true
+
+# Model
+model_name: "simple_mlp"
+num_classes: 10
+model_params:
+  input_dim: 784
+  hidden_dim: 256
+
+# Optimizer
+optimizer: "adam"
+
+# Scheduler
+use_scheduler: false
+
+# WandB
+use_wandb: true
