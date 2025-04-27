@@ -21,8 +21,13 @@ model_params:
 # Optimizer
 optimizer: "adam"
 
+# Loss
+loss: "crossentropy"
+
 # Scheduler
-use_scheduler: false
+use_scheduler: true
+scheduler_step: 5
+scheduler_gamma: 0.5
 
 # WandB
 use_wandb: true
