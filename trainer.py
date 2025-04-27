@@ -1,3 +1,7 @@
+'''
+Author: David Megli
+Date: 2025-04-28
+'''
 import os
 import time
 import copy

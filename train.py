@@ -1,3 +1,7 @@
+'''
+Author: David Megli
+Date: 2025-04-28
+'''
 import os
 import torch
 from torch.utils.data import DataLoader

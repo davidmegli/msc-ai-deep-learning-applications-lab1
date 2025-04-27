@@ -1,3 +1,7 @@
+'''
+Author: David Megli
+Date: 2025-04-28
+'''
 import yaml
 import torch
 from torch import optim

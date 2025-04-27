@@ -1,3 +1,7 @@
+'''
+Author: David Megli
+Date: 2025-04-28
+'''
 import torch.nn as nn
 
 class SimpleMLP(nn.Module):
