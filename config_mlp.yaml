@@ -25,9 +25,11 @@ optimizer: "adam"
 loss: "crossentropy"
 
 # Scheduler
-use_scheduler: false
-scheduler_step: 5
-scheduler_gamma: 0.5
+use_scheduler: true
+scheduler_name: "steplr"
+scheduler_params:
+  step_size: 5
+  gamma: 0.5
 
 # WandB
 use_wandb: true
