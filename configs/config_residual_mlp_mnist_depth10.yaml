@@ -1,0 +1,32 @@
+project_name: "ResidualMLP"
+output_dir: "outputs/residualmlp"
+
+trainer:
+  epochs: 50
+  patience: 10
+  mixed_precision: true
+  device: "cuda"
+  use_wandb: true
+  run_name: "ResidualMLP_MNIST"
+
+model:
+  name: "ResidualMLP"
+  params:
+    input_dim: 784
+    hidden_dim: 256
+    num_blocks: 2
+    num_classes: 10
+    activation: "ReLU"
+
+loss:
+  name: "crossentropy"
+
+optimizer:
+  name: "adam"
+  params:
+    lr: 0.001
+    weight_decay: 0 # 1e-5
+
+dataset:
+  name: "mnist"
+  batch_size: 128

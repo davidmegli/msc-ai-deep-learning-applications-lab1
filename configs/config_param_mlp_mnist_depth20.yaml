@@ -1,0 +1,40 @@
+# config_param_mlp.yaml
+project_name: "ParametrizedMLP_MNIST"
+output_dir: "./outputs/"
+seed: 42
+
+dataset:
+  name: "MNIST"
+  batch_size: 64
+  num_workers: 2
+
+model:
+  name: "ParametrizedMLP"
+  params:
+    layer_sizes: [784, 256, 256, 10]  # input size 784 (MNIST input size: 28*28) -> hidden 512 -> hidden 256 -> output 10 (MNIST output classes: 10)
+    activation: "ReLU" # "LeakyReLU", "Sigmoid", "Tanh"
+
+optimizer:
+  name: "Adam"
+  params:
+    lr: 0.001
+    weight_decay: 0 # 1e-5
+
+scheduler:
+  name: "StepLR"
+  params:
+    step_size: 10
+    gamma: 0.5
+
+loss:
+  name: "CrossEntropy"
+
+trainer:
+  epochs: 30
+  patience: 0 # no early stopping
+  mixed_precision: false
+  save_top_k: 3
+  use_wandb: true
+  log_interval: 10
+  run_name: "ParametrizedMLP_MNIST"
+  resume: false

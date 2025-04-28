@@ -22,6 +22,8 @@ def get_model(model_config):
         return SimpleMLP(**model_params)
     elif model_name == 'parametrizedmlp':
         return ParametrizedMLP(**model_params)
+    elif model_name == 'residualmlp':
+        return ResidualMLP(**model_params)
     else:
         raise ValueError(f"Unknown model name: {model_name}")
     

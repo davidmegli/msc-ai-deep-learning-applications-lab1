@@ -1,0 +1,29 @@
+project_name: "MLP_vs_ResidualMLP"
+trainer:
+  epochs: 30
+  patience: 5
+  mixed_precision: true
+  device: "cuda"
+  use_wandb: true
+  run_name: "default_run"
+
+model:
+  name: "ParametrizedMLP"
+  params:
+    input_dim: 784
+    hidden_dim: 256
+    output_dim: 10
+    activation: "ReLU"
+
+loss:
+  name: "crossentropy"
+
+optimizer:
+  name: "adam"
+  params:
+    lr: 0.001
+    weight_decay: 1e-5
+
+dataset:
+  name: "mnist"
+  batch_size: 128

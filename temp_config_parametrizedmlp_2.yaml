@@ -1,0 +1,27 @@
+dataset:
+  batch_size: 128
+  name: mnist
+loss:
+  name: crossentropy
+model:
+  name: ParametrizedMLP
+  params:
+    layer_sizes:
+    - 784
+    - 256
+    - 256
+    - 10
+optimizer:
+  name: adam
+  params:
+    lr: 0.001
+    weight_decay: 1e-5
+output_dir: outputs/experiments\ParametrizedMLP_depth2_20250428_193400
+project_name: MLP_vs_ResidualMLP
+trainer:
+  device: cuda
+  epochs: 30
+  mixed_precision: true
+  patience: 5
+  run_name: ParametrizedMLP_depth2_20250428_193400
+  use_wandb: true

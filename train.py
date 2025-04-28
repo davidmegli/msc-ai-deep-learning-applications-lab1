@@ -16,7 +16,7 @@ from trainer import Trainer
 from datetime import datetime
 import yaml
 
-def train(config_file_path):
+def train(config_file_path, disable_wandb=False):
 
     # Load config
     with open(config_file_path, 'r') as f:
@@ -51,7 +51,7 @@ def train(config_file_path):
     device = torch.device(config['trainer'].get('device', 'cuda' if torch.cuda.is_available() else 'cpu'))
 
     # Weights & Biases
-    use_wandb = config['trainer'].get('use_wandb', False)
+    use_wandb = config['trainer'].get('use_wandb', False) if not disable_wandb else False
     if use_wandb:
         wandb.init(project=config['project_name'], config=config, dir='./runs')
 
@@ -75,7 +75,8 @@ def train(config_file_path):
     )
 
     # Start training
-    trainer.train()
+    train_losses, train_accuracies, val_losses, val_accuracies = trainer.train()
+    return train_losses, train_accuracies, val_losses, val_accuracies
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

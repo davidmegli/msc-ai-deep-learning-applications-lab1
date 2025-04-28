@@ -120,6 +120,18 @@ class Trainer:
     def count_parameters(self, model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
     
+    def log_gradient_norms(self):
+        total_norm = 0.0
+        for p in self.model.parameters():
+            if p.grad is not None:
+                param_norm = p.grad.data.norm(2)
+                total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** 0.5
+        print(f"Gradient Norm: {total_norm}")
+        if self.use_wandb:
+            wandb.log({'gradient_norm': total_norm})
+
+    
     def train(self):
         train_losses, train_accuracies, val_losses, val_accuracies = [], [], [], []
         for epoch in range(self.start_epoch, self.max_epochs):

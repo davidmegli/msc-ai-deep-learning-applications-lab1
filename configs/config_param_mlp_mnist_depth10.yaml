@@ -11,7 +11,7 @@ dataset:
 model:
   name: "ParametrizedMLP"
   params:
-    layer_sizes: [784, 512, 256, 10]  # input size 784 (MNIST input size: 28*28) -> hidden 512 -> hidden 256 -> output 10 (MNIST output classes: 10)
+    layer_sizes: [784, 256, 256, 10]  # input size 784 (MNIST input size: 28*28) -> hidden 512 -> hidden 256 -> output 10 (MNIST output classes: 10)
     activation: "ReLU" # "LeakyReLU", "Sigmoid", "Tanh"
 
 optimizer:
