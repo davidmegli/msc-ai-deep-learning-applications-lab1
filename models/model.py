@@ -86,7 +86,7 @@ class ResidualMLP(nn.Module):
         return x
     
 class CustomCNN(nn.Module):
-    def __init__(self, num_classes: int, depth: int, width: int, use_residual: bool = False, activation: str = "relu"):
+    def __init__(self, num_classes: int, depth: int, width: int, use_residual: bool = False, activation: str = "relu", input_channels: int = 3):
         super(CustomCNN, self).__init__()
         
         assert depth >= 1, "Depth must be >= 1"
@@ -94,6 +94,7 @@ class CustomCNN(nn.Module):
         self.use_residual = use_residual
         self.width = width
         self.num_classes = num_classes
+        self.input_channels = input_channels
         
         # Activation
         if activation.lower() == "relu":
@@ -105,7 +106,7 @@ class CustomCNN(nn.Module):
         
         # First layer
         self.stem = nn.Sequential(
-            nn.Conv2d(3, width, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(self.input_channels, width, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(width),
             self.activation_fn
         )
