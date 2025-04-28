@@ -10,7 +10,7 @@ import torch
 import numpy as np
 
 from utils import get_model, get_loss, get_optimizer, get_scheduler
-from dataset import get_data_loaders
+from dataset.utils import get_data_loaders
 from trainer import Trainer
 from datetime import datetime
 import yaml
