@@ -82,3 +82,6 @@ class ResidualMLP(nn.Module):
         x = self.blocks(x)
         x = self.output_layer(x)
         return x
+    
+
+class SimpleCNN(nn.Module):

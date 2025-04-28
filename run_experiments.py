@@ -98,6 +98,7 @@ def plot_results(results_path):
 
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, f"{model_name}_plots.png"))
+        print(f"Plots saved for {model_name} in {os.path.join(output_dir, f'{model_name}_plots.png')}")
         plt.show()
 
 if __name__ == "__main__":

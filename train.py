@@ -55,7 +55,11 @@ def train(config_file_path, disable_wandb=False):
     # Weights & Biases
     use_wandb = config['trainer'].get('use_wandb', False) if not disable_wandb else False
     if use_wandb:
-        wandb.init(project=config['project_name'], config=config, dir='./runs')
+        if config['trainer'].get('run_name', None) is None:
+            run_name = f"{config['model']['name']}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        else:
+            run_name = config['trainer']['run_name']
+        wandb.init(project=config['project_name'], config=config, dir='./runs', name=run_name)
 
     start_time = time.time()
 
@@ -84,17 +88,7 @@ def train(config_file_path, disable_wandb=False):
     print("[INFO] Evaluating on Test Set...")
     test_loss, test_accuracy = evaluate(trainer.model, test_loader, trainer.device, trainer.criterion)
 
-    metrics = {
-        'train_loss': train_losses,
-        'train_accuracy': train_accuracies,
-        'val_loss': val_losses,
-        'val_accuracy': val_accuracies,
-        'test_loss': test_loss,
-        'test_accuracy': test_accuracy,
-        'run_name': config['trainer'].get('run_name', 'default_run'),
-        'parameters': trainer.total_params,
-        'training_time': training_time
-    }
+
     end_time = time.time()
     training_time = end_time - start_time
 
@@ -103,6 +97,8 @@ def train(config_file_path, disable_wandb=False):
         'train_accuracy': train_accuracies,
         'val_loss': val_losses,
         'val_accuracy': val_accuracies,
+        'test_loss': test_loss,
+        'test_accuracy': test_accuracy,
         'run_name': config['trainer'].get('run_name', 'default_run'),
         'parameters': trainer.total_params,
         'training_time': training_time
