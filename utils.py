@@ -20,14 +20,19 @@ def load_config(config_path: str):
 def get_model(model_config):
     model_name = model_config['name'].lower()
     model_params = model_config.get('params', {})
-    if model_name == 'simplemlp':
-        return SimpleMLP(**model_params)
-    elif model_name == 'parametrizedmlp':
-        return ParametrizedMLP(**model_params)
-    elif model_name == 'residualmlp':
-        return ResidualMLP(**model_params)
-    else:
+
+    model_zoo = {
+        'simplemlp': SimpleMLP,
+        'parametrizedmlp': ParametrizedMLP,
+        'residualmlp': ResidualMLP,
+        'customcnn': CustomCNN,
+    }
+
+    if model_name not in model_zoo:
         raise ValueError(f"Unknown model name: {model_name}")
+
+    return model_zoo[model_name](**model_params)
+
     
 def get_optimizer(optimizer_config, parameters):
     optimizer_name = optimizer_config['name'].lower()
