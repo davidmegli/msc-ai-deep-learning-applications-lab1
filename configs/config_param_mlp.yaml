@@ -27,7 +27,7 @@ scheduler:
     gamma: 0.5
 
 loss:
-  name: "CrossEntropyLoss"
+  name: "CrossEntropy"
 
 trainer:
   epochs: 30

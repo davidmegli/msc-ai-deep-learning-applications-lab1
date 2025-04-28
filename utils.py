@@ -16,57 +16,49 @@ def load_config(config_path: str):
     return config
 
 def get_model(model_config):
-    model_name = model_config['name']
+    model_name = model_config['name'].lower()
     model_params = model_config.get('params', {})
-
-    if model_name == 'SimpleMLP':
+    if model_name == 'simplemlp':
         return SimpleMLP(**model_params)
-    elif model_name == 'ParametrizedMLP':
+    elif model_name == 'parametrizedmlp':
         return ParametrizedMLP(**model_params)
     else:
         raise ValueError(f"Unknown model name: {model_name}")
+    
+def get_optimizer(optimizer_config, parameters):
+    optimizer_name = optimizer_config['name'].lower()
+    optimizer_params = optimizer_config.get('params', {})
 
-def get_optimizer(optimizer_name: str, model_params, lr: float):
-    if optimizer_name.lower() == "adam":
-        return optim.Adam(model_params, lr=lr)
-    elif optimizer_name.lower() == "sgd":
-        return optim.SGD(model_params, lr=lr, momentum=0.9)
+    if optimizer_name == 'adam':
+        return optim.Adam(parameters, **optimizer_params)
+    elif optimizer_name == 'sgd':
+        return optim.SGD(parameters, **optimizer_params)
+    elif optimizer_name == 'rmsprop':
+        return optim.RMSprop(parameters, **optimizer_params)
     else:
-        raise ValueError(f"Optimizer '{optimizer_name}' not supported.")
+        raise ValueError(f"Unknown optimizer: {optimizer_name}")
 
-def get_loss(loss_name: str):
-    if loss_name.lower() == "crossentropy":
+def get_loss(loss_name):
+    loss_name = loss_name.lower()
+    if loss_name == 'crossentropyloss':
         return nn.CrossEntropyLoss()
-    elif loss_name.lower() == "mse":
+    elif loss_name == 'mseloss':
         return nn.MSELoss()
     else:
-        raise ValueError(f"Loss '{loss_name}' not supported.")
+        raise ValueError(f"Unknown loss function: {loss_name}")
     
-def get_scheduler(scheduler_name: str, optimizer, scheduler_params: dict):
-    if scheduler_name.lower() == "steplr":
-        return optim.lr_scheduler.StepLR(
-            optimizer,
-            step_size=scheduler_params.get('step_size', 10),
-            gamma=scheduler_params.get('gamma', 0.1)
-        )
-    elif scheduler_name.lower() == "reducelronplateau":
-        return optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode=scheduler_params.get('mode', 'min'),
-            factor=scheduler_params.get('factor', 0.1),
-            patience=scheduler_params.get('patience', 10),
-            verbose=True
-        )
-    elif scheduler_name.lower() == "cosineannealinglr":
-        return optim.lr_scheduler.CosineAnnealingLR(
-            optimizer,
-            T_max=scheduler_params.get('T_max', 10),
-            eta_min=scheduler_params.get('eta_min', 0)
-        )
-    elif scheduler_name.lower() == "exponentiallr":
-        return optim.lr_scheduler.ExponentialLR(
-            optimizer,
-            gamma=scheduler_params.get('gamma', 0.95)
-        )
+def get_scheduler(scheduler_config, optimizer):
+    if scheduler_config is None:
+        return None
+
+    scheduler_name = scheduler_config['name'].lower()
+    scheduler_params = scheduler_config.get('params', {})
+
+    if scheduler_name == 'steplr':
+        return optim.lr_scheduler.StepLR(optimizer, **scheduler_params)
+    elif scheduler_name == 'reducelronplateau':
+        return optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_params)
+    elif scheduler_name == 'cosineannealinglr':
+        return optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_params)
     else:
-        raise ValueError(f"Scheduler '{scheduler_name}' not supported.")
+        raise ValueError(f"Unknown scheduler: {scheduler_name}")
