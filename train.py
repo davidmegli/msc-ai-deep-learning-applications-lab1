@@ -39,7 +39,7 @@ def train(config_file_path, disable_wandb=False):
         yaml.safe_dump(config, f)
 
     # Initialize dataset
-    train_loader, val_loader = get_data_loaders(config)
+    train_loader, val_loader, test_loader = get_data_loaders(config)
 
     # Initialize model
     model = get_model(config['model'])
@@ -81,6 +81,20 @@ def train(config_file_path, disable_wandb=False):
     # Start training
     train_losses, train_accuracies, val_losses, val_accuracies = trainer.train()
     
+    print("[INFO] Evaluating on Test Set...")
+    test_loss, test_accuracy = evaluate(trainer.model, test_loader, trainer.device, trainer.criterion)
+
+    metrics = {
+        'train_loss': train_losses,
+        'train_accuracy': train_accuracies,
+        'val_loss': val_losses,
+        'val_accuracy': val_accuracies,
+        'test_loss': test_loss,
+        'test_accuracy': test_accuracy,
+        'run_name': config['trainer'].get('run_name', 'default_run'),
+        'parameters': trainer.total_params,
+        'training_time': training_time
+    }
     end_time = time.time()
     training_time = end_time - start_time
 
@@ -99,7 +113,25 @@ def train(config_file_path, disable_wandb=False):
         yaml.dump(metrics, f)
     print(f"Metrics saved at {metrics_path}")
 
-    return train_losses, train_accuracies, val_losses, val_accuracies
+    return train_losses, train_accuracies, val_losses, val_accuracies, test_loss, test_accuracy, metrics
+
+def evaluate(model, loader, device, criterion):
+    model.eval()
+    loss = 0
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for inputs, targets in loader:
+            inputs, targets = inputs.to(device), targets.to(device)
+            outputs = model(inputs)
+            loss += criterion(outputs, targets).item()
+            _, predicted = torch.max(outputs, 1)
+            total += targets.size(0)
+            correct += (predicted == targets).sum().item()
+    loss /= len(loader)
+    accuracy = correct / total
+    return loss, accuracy
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
