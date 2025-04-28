@@ -16,13 +16,10 @@ from trainer import Trainer
 from datetime import datetime
 import yaml
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='configs/config_mlp.yaml', help='Path to config file')
-    args = parser.parse_args()
+def train(config_file_path):
 
     # Load config
-    with open(args.config, 'r') as f:
+    with open(config_file_path, 'r') as f:
         config = yaml.safe_load(f)
 
     # Set random seed
@@ -56,7 +53,7 @@ def main():
     # Weights & Biases
     use_wandb = config['trainer'].get('use_wandb', False)
     if use_wandb:
-        wandb.init(project=config['project_name'], config=config)
+        wandb.init(project=config['project_name'], config=config, dir='./runs')
 
     # Initialize trainer
     trainer = Trainer(
@@ -81,4 +78,8 @@ def main():
     trainer.train()
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', type=str, default='configs/config_mlp.yaml', help='Path to config file')
+    args = parser.parse_args()
+    config_file_path = args.config
+    train(config_file_path)
