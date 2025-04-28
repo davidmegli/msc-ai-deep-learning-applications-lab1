@@ -1,6 +1,8 @@
 '''
 Author: David Megli
 Date: 2025-04-28
+File: utils.py
+Description: Utility functions for loading configurations, models, optimizers, and loss functions.
 '''
 import yaml
 import torch

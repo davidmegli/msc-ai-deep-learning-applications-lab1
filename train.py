@@ -1,6 +1,8 @@
 '''
 Author: David Megli
 Date: 2025-04-28
+File: train.py
+Description: Main training script
 '''
 import argparse
 import yaml
@@ -14,7 +16,7 @@ from utils import get_model, get_loss, get_optimizer, get_scheduler
 from dataset.utils import get_data_loaders
 from trainer import Trainer
 from datetime import datetime
-import yaml
+import time
 
 def train(config_file_path, disable_wandb=False):
 
@@ -55,6 +57,8 @@ def train(config_file_path, disable_wandb=False):
     if use_wandb:
         wandb.init(project=config['project_name'], config=config, dir='./runs')
 
+    start_time = time.time()
+
     # Initialize trainer
     trainer = Trainer(
         model=model,
@@ -76,6 +80,25 @@ def train(config_file_path, disable_wandb=False):
 
     # Start training
     train_losses, train_accuracies, val_losses, val_accuracies = trainer.train()
+    
+    end_time = time.time()
+    training_time = end_time - start_time
+
+    metrics = {
+        'train_loss': train_losses,
+        'train_accuracy': train_accuracies,
+        'val_loss': val_losses,
+        'val_accuracy': val_accuracies,
+        'run_name': config['trainer'].get('run_name', 'default_run'),
+        'parameters': trainer.total_params,
+        'training_time': training_time
+    }
+
+    metrics_path = os.path.join(config['output_dir'], "metrics.yaml")
+    with open(metrics_path, "w") as f:
+        yaml.dump(metrics, f)
+    print(f"Metrics saved at {metrics_path}")
+
     return train_losses, train_accuracies, val_losses, val_accuracies
 
 if __name__ == "__main__":

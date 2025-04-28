@@ -1,9 +1,10 @@
 '''
 Author: David Megli
 Date: 2025-04-28
+File: trainer.py
+Description: Trainer class for model training and evaluation
 '''
 # trainer.py
-
 import os
 import torch
 import wandb

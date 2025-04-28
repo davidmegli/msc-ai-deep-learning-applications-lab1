@@ -1,7 +1,7 @@
 project_name: "MLP_vs_ResidualMLP"
 trainer:
   epochs: 30
-  patience: 5
+  patience: 0 # no early stopping
   mixed_precision: true
   device: "cuda"
   use_wandb: true

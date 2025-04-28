@@ -68,13 +68,13 @@ class ResidualBlock(nn.Module):
         return out + identity
 
 class ResidualMLP(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_blocks, num_classes, activation='ReLU'):
+    def __init__(self, input_dim, hidden_dim, num_blocks, output_dim, activation='ReLU'):
         super(ResidualMLP, self).__init__()
         self.input_layer = nn.Linear(input_dim, hidden_dim)
         self.blocks = nn.Sequential(*[
             ResidualBlock([hidden_dim, hidden_dim], activation) for _ in range(num_blocks)
         ])
-        self.output_layer = nn.Linear(hidden_dim, num_classes)
+        self.output_layer = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
         x = x.view(x.size(0), -1)
