@@ -8,28 +8,23 @@ from torch import optim
 import torch.nn as nn
 from torchvision import models
 
-from models.model import SimpleMLP
+from models.model import *
 
 def load_config(config_path: str):
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
     return config
 
-def get_model(name: str, num_classes: int, model_params: dict = {}):
-    if name.lower() == "simple_mlp":
-        return SimpleMLP(
-            input_dim=model_params.get("input_dim", 784),
-            hidden_dim=model_params.get("hidden_dim", 256),
-            num_classes=num_classes
-        )
+def get_model(model_config):
+    model_name = model_config['name']
+    model_params = model_config.get('params', {})
 
-    elif name.lower() == "resnet18":
-        model = models.resnet18(pretrained=False)
-        model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
-        return model
-
+    if model_name == 'SimpleMLP':
+        return SimpleMLP(**model_params)
+    elif model_name == 'ParametrizedMLP':
+        return ParametrizedMLP(**model_params)
     else:
-        raise ValueError(f"Model '{name}' not supported.")
+        raise ValueError(f"Unknown model name: {model_name}")
 
 def get_optimizer(optimizer_name: str, model_params, lr: float):
     if optimizer_name.lower() == "adam":
