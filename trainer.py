@@ -39,9 +39,14 @@ class Trainer:
         self.early_stop_counter = 0
         self.start_epoch = 0
 
+        self.total_params = self.count_parameters(self.model)
+        print(f"[INFO] Model has {self.total_params} trainable parameters.")
+        self.writer.add_text('Model/ParameterCount', str(self.total_params))
+
         if self.use_wandb:
             wandb.init(project=self.project_name, name=self.run_name, config={})
             wandb.watch(self.model)
+            wandb.config.update({"Total_parameters": self.total_params})
 
         # Auto-Resume
         self.checkpoint_path = os.path.join(self.output_dir, 'last_checkpoint.pth')
@@ -95,6 +100,9 @@ class Trainer:
                 except Exception as e:
                     print(f"[WARNING] Could not remove {f}: {e}")
 
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    
     def train(self):
         for epoch in range(self.start_epoch, self.max_epochs):
             print(f"Epoch {epoch+1}/{self.max_epochs}")
