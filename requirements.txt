@@ -1,6 +1,7 @@
-torch>=2.0
-torchvision>=0.15
-PyYAML
-tqdm
-tensorboard
-wandb
+torch==2.0.1
+torchvision==0.15.2
+wandb==0.15.0
+tensorboard==2.13.0
+pyyaml==6.0
+numpy==1.24.2
+matplotlib==3.7.1
