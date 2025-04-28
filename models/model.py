@@ -2,7 +2,9 @@
 Author: David Megli
 Date: 2025-04-28
 '''
+import torch
 import torch.nn as nn
+from torchvision.models.resnet import BasicBlock
 
 class SimpleMLP(nn.Module):
     def __init__(self, input_dim=784, hidden_dim=256, num_classes=10):
@@ -83,5 +85,54 @@ class ResidualMLP(nn.Module):
         x = self.output_layer(x)
         return x
     
+class CustomCNN(nn.Module):
+    def __init__(self, num_classes: int, depth: int, width: int, use_residual: bool = False, activation: str = "relu"):
+        super(CustomCNN, self).__init__()
+        
+        assert depth >= 1, "Depth must be >= 1"
+        
+        self.use_residual = use_residual
+        self.width = width
+        self.num_classes = num_classes
+        
+        # Activation
+        if activation.lower() == "relu":
+            self.activation_fn = nn.ReLU(inplace=True)
+        elif activation.lower() == "gelu":
+            self.activation_fn = nn.GELU()
+        else:
+            raise ValueError(f"Unsupported activation: {activation}")
+        
+        # First layer
+        self.stem = nn.Sequential(
+            nn.Conv2d(3, width, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(width),
+            self.activation_fn
+        )
+        
+        # Stack of blocks
+        blocks = []
+        for _ in range(depth):
+            if use_residual:
+                blocks.append(BasicBlock(width, width))
+            else:
+                blocks.append(
+                    nn.Sequential(
+                        nn.Conv2d(width, width, kernel_size=3, padding=1, bias=False),
+                        nn.BatchNorm2d(width),
+                        self.activation_fn,
+                    )
+                )
+        self.blocks = nn.Sequential(*blocks)
+        
+        # Classifier
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1)) # Global average pooling
+        self.fc = nn.Linear(width, num_classes)
 
-class SimpleCNN(nn.Module):
+    def forward(self, x):
+        x = self.stem(x)
+        x = self.blocks(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return x
