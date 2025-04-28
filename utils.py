@@ -29,6 +29,10 @@ def get_optimizer(optimizer_config, parameters):
     optimizer_name = optimizer_config['name'].lower()
     optimizer_params = optimizer_config.get('params', {})
 
+    # Conversione esplicita dei parametri numerici da stringa a float
+    if 'weight_decay' in optimizer_params:
+        optimizer_params['weight_decay'] = float(optimizer_params['weight_decay'])
+
     if optimizer_name == 'adam':
         return optim.Adam(parameters, **optimizer_params)
     elif optimizer_name == 'sgd':
@@ -38,11 +42,11 @@ def get_optimizer(optimizer_config, parameters):
     else:
         raise ValueError(f"Unknown optimizer: {optimizer_name}")
 
-def get_loss(loss_name):
-    loss_name = loss_name.lower()
-    if loss_name == 'crossentropyloss':
+def get_loss(loss_config):
+    loss_name = loss_config['name'].lower()
+    if loss_name == 'crossentropy':
         return nn.CrossEntropyLoss()
-    elif loss_name == 'mseloss':
+    elif loss_name == 'mse':
         return nn.MSELoss()
     else:
         raise ValueError(f"Unknown loss function: {loss_name}")

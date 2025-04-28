@@ -18,7 +18,7 @@ optimizer:
   name: "Adam"
   params:
     lr: 0.001
-    #weight_decay: 0.0001
+    weight_decay: 0 # 1e-5
 
 scheduler:
   name: "StepLR"
@@ -31,7 +31,10 @@ loss:
 
 trainer:
   epochs: 30
-  early_stopping_patience: 5
+  patience: 0 # no early stopping
+  mixed_precision: false
   save_top_k: 3
   use_wandb: true
   log_interval: 10
+  run_name: "ParametrizedMLP_MNIST"
+  resume: false

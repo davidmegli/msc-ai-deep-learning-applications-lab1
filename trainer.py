@@ -10,12 +10,28 @@ import wandb
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import time
+from torch.utils.data import DataLoader
+from typing import Callable, Optional
 
 class Trainer:
-    def __init__(self, model, train_loader, val_loader, criterion, optimizer, scheduler,
-                 device, output_dir, max_epochs, patience, mixed_precision, project_name,
-                 use_wandb, run_name):
-
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        train_loader: DataLoader,
+        val_loader: Optional[DataLoader],
+        criterion: Callable,
+        optimizer: torch.optim.Optimizer,
+        scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+        device: Optional[torch.device] = None,
+        output_dir: str = './output',
+        max_epochs: int = 100,
+        patience: int = 10,
+        mixed_precision: bool = False,
+        project_name: str = 'training',
+        use_wandb: bool = True,
+        run_name: Optional[str] = None,
+        resume: bool = False,
+    ):
         self.model = model.to(device)
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -30,6 +46,7 @@ class Trainer:
         self.project_name = project_name
         self.use_wandb = use_wandb
         self.run_name = run_name
+        self.resume = resume
 
         self.scaler = torch.amp.GradScaler('cuda',enabled=self.mixed_precision)
         self.writer = SummaryWriter(log_dir=os.path.join(output_dir, 'tensorboard'))
@@ -50,7 +67,7 @@ class Trainer:
 
         # Auto-Resume
         self.checkpoint_path = os.path.join(self.output_dir, 'last_checkpoint.pth')
-        if os.path.exists(self.checkpoint_path):
+        if os.path.exists(self.checkpoint_path) and self.resume:
             print(f"[INFO] Found checkpoint. Resuming training from {self.checkpoint_path}")
             self.load_checkpoint()
 
@@ -100,16 +117,20 @@ class Trainer:
                 except Exception as e:
                     print(f"[WARNING] Could not remove {f}: {e}")
 
-    def count_parameters(model):
+    def count_parameters(self, model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
     
     def train(self):
+        train_losses, train_accuracies, val_losses, val_accuracies = [], [], [], []
         for epoch in range(self.start_epoch, self.max_epochs):
             print(f"Epoch {epoch+1}/{self.max_epochs}")
 
-            train_loss = self.train_one_epoch()
-            val_loss = self.validate()
-
+            train_loss, train_accuracy, val_loss, val_accuracy = self.train_one_epoch(epoch)
+            train_losses.append(train_loss)
+            train_accuracies.append(train_accuracy)
+            val_losses.append(val_loss)
+            val_accuracies.append(val_accuracy)
+            
             # Save learning rate
             current_lr = self.optimizer.param_groups[0]['lr']
             self.writer.add_scalar('LearningRate', current_lr, epoch)
@@ -137,16 +158,20 @@ class Trainer:
 
             self.save_checkpoint(epoch)
 
-            if self.early_stop_counter >= self.patience:
+            if self.patience > 0 and self.early_stop_counter >= self.patience:
                 print(f"Early stopping triggered at epoch {epoch+1}")
                 break
         self.writer.close()
+        return train_losses, train_accuracies, val_losses, val_accuracies
 
     def train_one_epoch(self, epoch):
         self.model.train()
-        running_loss = 0
+        running_loss = 0.0
+        correct = 0
+        total = 0
+        pbar = tqdm(self.train_loader, desc=f"Training Epoch {epoch+1}/{self.max_epochs}", unit="batch")
 
-        for inputs, targets in self.train_loader:
+        for inputs, targets in pbar:
             inputs, targets = inputs.to(self.device), targets.to(self.device)
 
             self.optimizer.zero_grad()
@@ -157,7 +182,12 @@ class Trainer:
 
             running_loss += loss.item()
 
+            _, predicted = torch.max(outputs, dim=1)
+            total += targets.size(0)
+            correct += (predicted == targets).sum().item()
+
         train_loss = running_loss / len(self.train_loader)
+        train_accuracy = correct / total
 
         # VALIDATE
         val_loss, val_accuracy = self.validate(epoch)
@@ -172,6 +202,7 @@ class Trainer:
         # LOGGING
         self.writer.add_scalar('Loss/train', train_loss, epoch)
         self.writer.add_scalar('Loss/val', val_loss, epoch)
+        self.writer.add_scalar('Accuracy/train', train_accuracy, epoch)
         self.writer.add_scalar('Accuracy/val', val_accuracy, epoch)
         self.writer.add_scalar('LearningRate', current_lr, epoch)
 
@@ -179,18 +210,20 @@ class Trainer:
             wandb.log({
                 "train_loss": train_loss,
                 "val_loss": val_loss,
+                "train_accuracy": train_accuracy,
                 "val_accuracy": val_accuracy,
                 "learning_rate": current_lr,
                 "epoch": epoch
             })
 
-        print(f"Epoch [{epoch}/{self.num_epochs}] "
+        print(f"Epoch [{epoch}/{self.max_epochs}] "
             f"Train Loss: {train_loss:.4f} | "
+            f"Train Accuracy: {train_accuracy:.4f} | "
             f"Val Loss: {val_loss:.4f} | "
             f"Val Accuracy: {val_accuracy:.4f} | "
             f"LR: {current_lr:.6f}")
 
-        return train_loss, val_loss, val_accuracy
+        return train_loss, train_accuracy, val_loss, val_accuracy
 
 
     def validate(self, epoch):
@@ -200,7 +233,8 @@ class Trainer:
         total = 0
 
         with torch.no_grad():
-            for inputs, targets in self.val_loader:
+            pbar = tqdm(self.val_loader, desc='Validating', leave=False)
+            for inputs, targets in pbar:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
 
                 outputs = self.model(inputs)
