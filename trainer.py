@@ -31,7 +31,7 @@ class Trainer:
         self.use_wandb = use_wandb
         self.run_name = run_name
 
-        self.scaler = torch.cuda.amp.GradScaler(enabled=self.mixed_precision)
+        self.scaler = torch.amp.GradScaler('cuda',enabled=self.mixed_precision)
         self.writer = SummaryWriter(log_dir=os.path.join(output_dir, 'tensorboard'))
 
         # early stopping
@@ -132,39 +132,78 @@ class Trainer:
             if self.early_stop_counter >= self.patience:
                 print(f"Early stopping triggered at epoch {epoch+1}")
                 break
+        self.writer.close()
 
-    def train_one_epoch(self):
+    def train_one_epoch(self, epoch):
         self.model.train()
-        running_loss = 0.0
+        running_loss = 0
 
-        for inputs, targets in tqdm(self.train_loader, desc="Training", leave=False):
+        for inputs, targets in self.train_loader:
             inputs, targets = inputs.to(self.device), targets.to(self.device)
 
             self.optimizer.zero_grad()
+            outputs = self.model(inputs)
+            loss = self.criterion(outputs, targets)
+            loss.backward()
+            self.optimizer.step()
 
-            with torch.cuda.amp.autocast(enabled=self.mixed_precision):
-                outputs = self.model(inputs)
-                loss = self.criterion(outputs, targets)
+            running_loss += loss.item()
 
-            self.scaler.scale(loss).backward()
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+        train_loss = running_loss / len(self.train_loader)
 
-            running_loss += loss.item() * inputs.size(0)
+        # VALIDATE
+        val_loss, val_accuracy = self.validate(epoch)
 
-        return running_loss / len(self.train_loader.dataset)
+        # SCHEDULER STEP
+        if self.scheduler:
+            self.scheduler.step()
 
-    def validate(self):
+        # LEARNING RATE
+        current_lr = self.optimizer.param_groups[0]['lr']
+
+        # LOGGING
+        self.writer.add_scalar('Loss/train', train_loss, epoch)
+        self.writer.add_scalar('Loss/val', val_loss, epoch)
+        self.writer.add_scalar('Accuracy/val', val_accuracy, epoch)
+        self.writer.add_scalar('LearningRate', current_lr, epoch)
+
+        if self.use_wandb:
+            wandb.log({
+                "train_loss": train_loss,
+                "val_loss": val_loss,
+                "val_accuracy": val_accuracy,
+                "learning_rate": current_lr,
+                "epoch": epoch
+            })
+
+        print(f"Epoch [{epoch}/{self.num_epochs}] "
+            f"Train Loss: {train_loss:.4f} | "
+            f"Val Loss: {val_loss:.4f} | "
+            f"Val Accuracy: {val_accuracy:.4f} | "
+            f"LR: {current_lr:.6f}")
+
+        return train_loss, val_loss, val_accuracy
+
+
+    def validate(self, epoch):
         self.model.eval()
-        running_loss = 0.0
+        val_loss = 0
+        correct = 0
+        total = 0
 
         with torch.no_grad():
-            for inputs, targets in tqdm(self.val_loader, desc="Validation", leave=False):
+            for inputs, targets in self.val_loader:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
 
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, targets)
+                val_loss += loss.item()
 
-                running_loss += loss.item() * inputs.size(0)
+                _, predicted = torch.max(outputs, dim=1)
+                total += targets.size(0)
+                correct += (predicted == targets).sum().item()
 
-        return running_loss / len(self.val_loader.dataset)
+        val_loss /= len(self.val_loader)
+        val_accuracy = correct / total
+
+        return val_loss, val_accuracy
