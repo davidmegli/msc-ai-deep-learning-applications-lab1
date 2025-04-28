@@ -20,13 +20,26 @@ class SimpleMLP(nn.Module):
     
 
 class ParametrizedMLP(nn.Module):
-    def __init__(self, layer_sizes):
+    def __init__(self, layer_sizes, activation='ReLU'):
         super(ParametrizedMLP, self).__init__()
         layers = []
-        for i in range(len(layer_sizes) -1):
-            layers.append(nn.Linear(layer_sizes[i], layer_sizes[i+1]))
+
+        # Mapping attivazioni
+        activation_layer = {
+            'ReLU': nn.ReLU,
+            'LeakyReLU': nn.LeakyReLU,
+            'ELU': nn.ELU,
+            'Sigmoid': nn.Sigmoid,
+            'Tanh': nn.Tanh
+        }
+
+        act_fn = activation_layer.get(activation, nn.ReLU)
+
+        for i in range(len(layer_sizes) - 1):
+            layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
             if i < len(layer_sizes) - 2:
-                layers.append(nn.ReLU())
+                layers.append(act_fn())
+
         self.net = nn.Sequential(*layers)
 
     def forward(self, x):
