@@ -1,16 +1,18 @@
 model:
   name: ResidualCNN
-  num_classes: 100
-  depth: 32
-  width: 64
+  params:
+    num_classes: 100
+    depth: 32
+    width: 64
 
 trainer:
-  epochs: 100
+  run_name: "cnn_finetune_fc_adam"
+  epochs: 30
   device: cuda
   patience: 10
   mixed_precision: True
   use_wandb: True
-  resume: False
+  resume: True
   pretrained_checkpoint: residualcnn_checkpoint.pth
   freeze_backbone: False
 
@@ -20,12 +22,20 @@ optimizer:
   weight_decay: 1e-4
 
 loss:
-  name: CrossEntropyLoss
+  name: CrossEntropy
 
 scheduler:
   name: StepLR
-  step_size: 30
-  gamma: 0.1
+  params:
+    step_size: 30
+    gamma: 0.1
 
 project_name: cifar100_finetune
-output_dir: output/finetune
+output_dir: outputs/finetune
+
+dataset: 
+  name: "cifar100"
+  batch_size: 16
+  num_workers: 4
+  test_size: 0.1
+  val_size: 0.1

@@ -15,5 +15,5 @@
 ## Exercise 2.1
 For this part I've used a pretrained ResidualCNN (width=64, depth=32) from the previous exercise
 1. Move the checkpoint obtained from the previous exercise
-2. Run the extract_features.py script, passing the checkpoint path as argument, e.g.: "python extract_features.py --checkpoint_path residualcnn_checkpoint.pth". It will generate a "cifar100_features.npz" file in the "output/features" folder (or in the path you specified as --output_dir)
-3. Run "evaluate_baselines.py" to evaluate Linear SVM, KNN and Gaussian Naive Bayes using the previous network as a feature extractor (i.e. using the previously extracted features)
+2. Run the extract_features.py script, passing the checkpoint path as argument, e.g.: "python extract_features.py --checkpoint_path residualcnn_checkpoint.pth". It will generate a "cifar100_features.npz" file in the "outputs/features" folder (or in the path you specified as --output_dir)
+3. Run "evaluate_baselines.py" to evaluate Linear SVM, KNN and Gaussian Naive Bayes using the previous network as a feature extractor (i.e. using the previously extracted features). This will generate a "baseline_results.csv" file in the "outputs" folder.

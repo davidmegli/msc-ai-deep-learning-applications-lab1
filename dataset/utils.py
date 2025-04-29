@@ -34,6 +34,14 @@ def get_data_loaders(config):
         ])
 
         full_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+    elif dataset_name == 'cifar100':
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+        ])
+
+        full_dataset = datasets.CIFAR100(root='./data', train=True, download=True, transform=transform)
+
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 

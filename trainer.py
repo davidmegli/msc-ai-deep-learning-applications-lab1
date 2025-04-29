@@ -32,7 +32,8 @@ class Trainer:
         use_wandb: bool = True,
         run_name: Optional[str] = None,
         resume: bool = False,
-    ):
+        config: Optional[dict] = None):
+
         self.model = model.to(device)
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -48,6 +49,12 @@ class Trainer:
         self.use_wandb = use_wandb
         self.run_name = run_name
         self.resume = resume
+        self.config = config or {}
+
+        self.progressive_unfreeze = False
+        self.unfreeze_schedule = []
+
+        self.maybe_freeze_backbone()
 
         self.scaler = torch.amp.GradScaler('cuda',enabled=self.mixed_precision)
         self.writer = SummaryWriter(log_dir=os.path.join(output_dir, 'tensorboard'))
@@ -61,6 +68,43 @@ class Trainer:
         print(f"[INFO] Model has {self.total_params} trainable parameters.")
         self.writer.add_text('Model/ParameterCount', str(self.total_params))
 
+        pretrained_path = self.config['trainer'].get('pretrained_checkpoint')
+        if pretrained_path and os.path.exists(pretrained_path):
+            checkpoint = torch.load(pretrained_path, map_location=self.device)
+            
+            # Gestione caricamento modello con classi di output diverse
+            model_dict = self.model.state_dict()
+            checkpoint_dict = checkpoint['model_state_dict']
+
+            # Verifica se è un caso speciale: dimensione del fc layer diversa
+            fc_weight_key = 'fc.weight'
+            fc_bias_key = 'fc.bias'
+
+            fc_mismatch = (
+                fc_weight_key in checkpoint_dict
+                and fc_bias_key in checkpoint_dict
+                and checkpoint_dict[fc_weight_key].shape[0] != config['model']['params']['num_classes']
+            )
+
+            if fc_mismatch:
+                print("[INFO] FC layer mismatch: loading all layers except the classifier (fc)")
+
+                # Escludi fc.weight e fc.bias
+                pretrained_dict = {
+                    k: v for k, v in checkpoint_dict.items()
+                    if k in model_dict and not k.startswith('fc.')
+                }
+            
+                model_dict.update(pretrained_dict)
+                self.model.load_state_dict(model_dict)
+
+            else:
+                # Caricamento normale
+                self.model.load_state_dict(checkpoint_dict)
+
+            #self.model.load_state_dict(checkpoint['model_state_dict'])
+            print(f"[INFO] Loaded pretrained weights from {pretrained_path}")
+
         if self.use_wandb:
             wandb.init(project=self.project_name, name=self.run_name, config={})
             wandb.watch(self.model)
@@ -71,6 +115,26 @@ class Trainer:
         if os.path.exists(self.checkpoint_path) and self.resume:
             print(f"[INFO] Found checkpoint. Resuming training from {self.checkpoint_path}")
             self.load_checkpoint()
+
+    def maybe_freeze_backbone(self):
+        # Setup modalità di freeze
+        freeze_mode = self.config.get('trainer', {}).get('freeze_backbone', False)
+        if freeze_mode == "progressive":
+            self.progressive_unfreeze = True
+            self.unfreeze_schedule = self.config['trainer'].get('unfreeze_at_epochs', [])
+
+            # Congela inizialmente tutto tranne FC
+            for name, param in self.model.named_parameters():
+                if not name.startswith('fc'):
+                    param.requires_grad = False
+            print("[INFO] Model backbone frozen (progressive mode)")
+        elif freeze_mode is True:
+            for name, param in self.model.named_parameters():
+                if not name.startswith('fc'):
+                    param.requires_grad = False
+            print("[INFO] Model backbone frozen.")
+        else:
+            print("[INFO] Training full model (no freezing).")
 
     def save_checkpoint(self, epoch):
         """Save model checkpoint with epoch and timestamp."""
@@ -142,6 +206,21 @@ class Trainer:
         if self.use_wandb:
             wandb.log({'gradient_norm': total_norm})
 
+    def unfreeze_layers_progressively(self, epoch):
+        if not hasattr(self.model, 'blocks'):
+            return
+
+        unfreeze_epochs = self.unfreeze_schedule
+        for e in unfreeze_epochs:
+            if epoch == e:
+                idx = unfreeze_epochs.index(e)
+                # Sblocca i blocchi dalla fine (i più alti)
+                blocks_to_unfreeze = 1
+                block_indices = list(range(len(self.model.blocks) - blocks_to_unfreeze - idx, len(self.model.blocks)))
+                print(f"[INFO] Unfreezing blocks at epoch {epoch}: {block_indices}")
+                for i in block_indices:
+                    for param in self.model.blocks[i].parameters():
+                        param.requires_grad = True
     
     def train(self):
         train_losses, train_accuracies, val_losses, val_accuracies = [], [], [], []
@@ -181,6 +260,15 @@ class Trainer:
 
     def train_one_epoch(self, epoch):
         self.model.train()
+        if self.progressive_unfreeze:
+            self.unfreeze_layers_progressively(epoch)
+
+        if self.config.get('trainer', {}).get('freeze_backbone') == 'progressive':
+            if epoch in self.progressive_unfreeze_schedule:
+                print(f"[INFO] Unfreezing layers at epoch {epoch}")
+                for param in self.model.parameters():
+                    param.requires_grad = True
+
         running_loss = 0.0
         correct = 0
         total = 0

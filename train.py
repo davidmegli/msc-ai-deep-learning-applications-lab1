@@ -57,12 +57,6 @@ def train(config_file_path, disable_wandb=False):
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         print(f"[INFO] Loaded pretrained weights. Missing: {missing}, Unexpected: {unexpected}")
 
-    if config['trainer'].get('freeze_backbone', False):
-        for name, param in model.named_parameters():
-            if not name.startswith('fc'):
-                param.requires_grad = False
-        print("[INFO] Feature extractor frozen.")
-
     # Loss, optimizer, scheduler
     criterion = get_loss(config['loss'])
     optimizer = get_optimizer(config['optimizer'], model.parameters())
@@ -95,7 +89,8 @@ def train(config_file_path, disable_wandb=False):
         project_name=config['project_name'],
         use_wandb=use_wandb,
         run_name=config['trainer'].get('run_name', 'default_run'),
-        resume=config['trainer'].get('resume', False)
+        resume=config['trainer'].get('resume', False),
+        config=config
     )
 
     # Start training
