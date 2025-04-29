@@ -88,6 +88,16 @@ class Trainer:
 
         self.cleanup_old_checkpoints(max_keep=5)
 
+    def save_as_best_model(self, epoch):
+        checkpoint = {
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'scheduler_state_dict': self.scheduler.state_dict() if self.scheduler else None,
+            'epoch': epoch,
+            'best_loss': self.best_loss
+        }
+        filename = 'best_model.pth'
+        torch.save(checkpoint, os.path.join(self.output_dir, filename))
 
     def load_checkpoint(self):
         checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
@@ -157,7 +167,7 @@ class Trainer:
             if val_loss < self.best_loss:
                 self.best_loss = val_loss
                 self.early_stop_counter = 0
-                torch.save(self.model.state_dict(), os.path.join(self.output_dir, 'best_model.pth'))
+                self.save_as_best_model()
             else:
                 self.early_stop_counter += 1
 
