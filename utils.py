@@ -20,17 +20,16 @@ def load_config(config_path: str):
 def get_model(model_config):
     model_name = model_config['name'].lower()
     model_params = model_config.get('params', {})
-
     model_zoo = {
         'simplemlp': SimpleMLP,
         'parametrizedmlp': ParametrizedMLP,
         'residualmlp': ResidualMLP,
         'customcnn': CustomCNN,
+        'simplecnn': SimpleCNN,
+        'residualcnn': ResidualCNN,
     }
-
     if model_name not in model_zoo:
         raise ValueError(f"Unknown model name: {model_name}")
-
     return model_zoo[model_name](**model_params)
 
     

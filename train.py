@@ -38,7 +38,11 @@ def train(config_file_path, disable_wandb=False):
     with open(config_save_path, 'w') as f:
         yaml.safe_dump(config, f)
 
-    # Initialize dataset
+    # Device setup
+    device = torch.device(config['trainer'].get('device', 'cuda' if torch.cuda.is_available() else 'cpu'))
+    print(f"[INFO] using device {device}")
+
+    # Initializing dataset
     train_loader, val_loader, test_loader = get_data_loaders(config)
 
     # Initialize model
@@ -48,9 +52,6 @@ def train(config_file_path, disable_wandb=False):
     criterion = get_loss(config['loss'])
     optimizer = get_optimizer(config['optimizer'], model.parameters())
     scheduler = get_scheduler(config.get('scheduler'), optimizer)
-    
-    # Device setup
-    device = torch.device(config['trainer'].get('device', 'cuda' if torch.cuda.is_available() else 'cpu'))
 
     # Weights & Biases
     use_wandb = config['trainer'].get('use_wandb', False) if not disable_wandb else False

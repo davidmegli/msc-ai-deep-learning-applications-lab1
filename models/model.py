@@ -114,7 +114,7 @@ class CustomCNN(nn.Module):
         # Stack of blocks
         blocks = []
         for _ in range(depth):
-            if use_residual:
+            if use_residual: # Using BasicBlock w residual connection
                 blocks.append(BasicBlock(width, width))
             else:
                 blocks.append(
@@ -137,3 +137,25 @@ class CustomCNN(nn.Module):
         x = torch.flatten(x, 1)
         x = self.fc(x)
         return x
+
+class SimpleCNN(CustomCNN):
+    def __init__(self, num_classes: int, depth: int, width: int, activation: str = "relu", input_channels: int = 3):
+        super().__init__(
+            num_classes=num_classes,
+            depth=depth,
+            width=width,
+            use_residual=False,
+            activation=activation,
+            input_channels=input_channels
+        )
+
+class ResidualCNN(CustomCNN):
+    def __init__(self, num_classes: int, depth: int, width: int, activation: str = "relu", input_channels: int = 3):
+        super().__init__(
+            num_classes=num_classes,
+            depth=depth,
+            width=width,
+            use_residual=True,
+            activation=activation,
+            input_channels=input_channels
+        )

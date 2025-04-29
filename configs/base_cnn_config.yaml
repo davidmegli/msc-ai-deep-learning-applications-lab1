@@ -1,0 +1,33 @@
+project_name: "CNN_Depth_Comparison"
+trainer:
+  epochs: 30
+  patience: 5
+  mixed_precision: true
+  device: "cuda"
+  use_wandb: true
+  run_name: "default_cnn_run"
+
+model:
+  name: "SimpleCNN"
+  params:
+    input_channels: 3
+    num_classes: 10
+    depth: 4  # Placeholder, verrà sovrascritto
+    width: 64
+    activation: "relu"
+
+loss:
+  name: "crossentropy"
+
+optimizer:
+  name: "adam"
+  params:
+    lr: 0.001
+    weight_decay: 0 #1e-5
+
+dataset:
+  name: "cifar10"
+  batch_size: 16
+  num_workers: 1
+  test_size: 0.1
+  val_size: 0.1

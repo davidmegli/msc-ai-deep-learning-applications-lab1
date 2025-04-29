@@ -26,7 +26,7 @@ optimizer:
 
 dataset:
   name: "mnist"
-  batch_size: 128
-  num_workers: 4
+  batch_size: 16
+  num_workers: 1
   test_size: 0.1
   val_size: 0.1

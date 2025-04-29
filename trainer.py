@@ -146,20 +146,12 @@ class Trainer:
             
             # Save learning rate
             current_lr = self.optimizer.param_groups[0]['lr']
-            self.writer.add_scalar('LearningRate', current_lr, epoch)
-            if self.use_wandb:
-                wandb.log({"LearningRate": current_lr})
-
+            
             if self.scheduler:
                 if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                     self.scheduler.step(val_loss)
                 else:
                     self.scheduler.step()
-
-            # Log losses
-            self.writer.add_scalars('Loss', {'train': train_loss, 'val': val_loss}, epoch)
-            if self.use_wandb:
-                wandb.log({"Train Loss": train_loss, "Val Loss": val_loss})
 
             # Early Stopping
             if val_loss < self.best_loss:

@@ -9,6 +9,7 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Subset
+import numpy as np
 
 def get_data_loaders(config):
     dataset_name = config['dataset']['name'].lower()
@@ -16,6 +17,8 @@ def get_data_loaders(config):
     num_workers = config['dataset'].get('num_workers', 2)
     test_size = config['dataset'].get('test_size', 0.1)  # percentuale test
     val_size = config['dataset'].get('val_size', 0.1)    # percentuale validation
+    device = config['trainer'].get('device', None)
+    pin_memory = True if device == 'cuda' else False
 
     if dataset_name == 'mnist':
         transform = transforms.Compose([
@@ -35,7 +38,12 @@ def get_data_loaders(config):
         raise ValueError(f"Unknown dataset: {dataset_name}")
 
     # Split manuale
-    targets = full_dataset.targets.numpy()
+    #targets = full_dataset.targets.numpy() # When loading CIFAR-10: "AttributeError: 'list' object has no attribute 'numpy'""
+    if isinstance(full_dataset.targets, torch.Tensor): # Per gestire sia Tensor che list
+        targets = full_dataset.targets.numpy()
+    else:
+        targets = np.array(full_dataset.targets)
+
     train_idx, temp_idx = train_test_split(
         range(len(full_dataset)),
         test_size=(test_size + val_size),
@@ -59,8 +67,8 @@ def get_data_loaders(config):
     test_dataset = Subset(full_dataset, test_idx)
 
     # DataLoader
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
 
     return train_loader, val_loader, test_loader
