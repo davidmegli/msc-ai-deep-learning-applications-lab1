@@ -130,11 +130,13 @@ class CustomCNN(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1)) # Global average pooling
         self.fc = nn.Linear(width, num_classes)
 
-    def forward(self, x):
+    def forward(self, x, return_features=False):
         x = self.stem(x)
         x = self.blocks(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
+        if return_features:
+            return x
         x = self.fc(x)
         return x
 
