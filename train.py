@@ -48,6 +48,21 @@ def train(config_file_path, disable_wandb=False):
     # Initialize model
     model = get_model(config['model'])
 
+    # Load pretrained weights (except classifier)
+    if config['trainer'].get('pretrained_checkpoint', None):
+        checkpoint = torch.load(config['trainer']['pretrained_checkpoint'], map_location=device)
+        state_dict = checkpoint['model_state_dict']
+        # Remove classifier weights (they don't match shape)
+        state_dict = {k: v for k, v in state_dict.items() if 'fc' not in k}
+        missing, unexpected = model.load_state_dict(state_dict, strict=False)
+        print(f"[INFO] Loaded pretrained weights. Missing: {missing}, Unexpected: {unexpected}")
+
+    if config['trainer'].get('freeze_backbone', False):
+        for name, param in model.named_parameters():
+            if not name.startswith('fc'):
+                param.requires_grad = False
+        print("[INFO] Feature extractor frozen.")
+
     # Loss, optimizer, scheduler
     criterion = get_loss(config['loss'])
     optimizer = get_optimizer(config['optimizer'], model.parameters())
