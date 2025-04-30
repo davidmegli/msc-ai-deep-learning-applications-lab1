@@ -12,7 +12,7 @@ trainer:
   patience: 10
   mixed_precision: True
   use_wandb: True
-  resume: False
+  resume: True
   pretrained_checkpoint: residualcnn_checkpoint.pth
   freeze_backbone: progressive
   unfreeze_at_epochs: [10, 20]
@@ -32,8 +32,8 @@ scheduler:
     step_size: 30
     gamma: 0.1
 
-project_name: cifar100_finetune_progressive
-output_dir: outputs/finetune_progressive
+project_name: cifar100_finetune
+output_dir: outputs/finetune
 
 dataset: 
   name: "cifar100"

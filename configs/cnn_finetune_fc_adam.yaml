@@ -14,7 +14,7 @@ trainer:
   use_wandb: True
   resume: True
   pretrained_checkpoint: residualcnn_checkpoint.pth
-  freeze_backbone: False
+  freeze_backbone: True
 
 optimizer:
   name: Adam

@@ -13,6 +13,7 @@ from tqdm import tqdm
 import time
 from torch.utils.data import DataLoader
 from typing import Callable, Optional
+import re
 
 class Trainer:
     def __init__(
@@ -50,6 +51,8 @@ class Trainer:
         self.run_name = run_name
         self.resume = resume
         self.config = config or {}
+        basename = "" + self.model.__class__.__name__ + "_" + self.optimizer.__class__.__name__
+        self.basename = self.config['trainer'].get('run_name', basename) + "_"
 
         self.progressive_unfreeze = False
         self.unfreeze_schedule = []
@@ -68,53 +71,59 @@ class Trainer:
         print(f"[INFO] Model has {self.total_params} trainable parameters.")
         self.writer.add_text('Model/ParameterCount', str(self.total_params))
 
-        pretrained_path = self.config['trainer'].get('pretrained_checkpoint')
-        if pretrained_path and os.path.exists(pretrained_path):
-            checkpoint = torch.load(pretrained_path, map_location=self.device)
+        # Resume
+        if self.resume:
+            # If a checkpoint is given, try to load it
+            pretrained_path = self.config['trainer'].get('pretrained_checkpoint')
+            self.checkpoint_path = pretrained_path
+            if pretrained_path and os.path.exists(pretrained_path):
+                checkpoint = torch.load(pretrained_path, map_location=self.device)
+
+                # Gestione caricamento modello con classi di output diverse
+                model_dict = self.model.state_dict()
+                checkpoint_dict = checkpoint['model_state_dict']
+
+                # Verifica se è un caso speciale: dimensione del fc layer diversa
+                fc_weight_key = 'fc.weight'
+                fc_bias_key = 'fc.bias'
+
+                fc_mismatch = (
+                    fc_weight_key in checkpoint_dict
+                    and fc_bias_key in checkpoint_dict
+                    and checkpoint_dict[fc_weight_key].shape[0] != config['model']['params']['num_classes']
+                )
+                # If there is a mismatch in fully connected dimensions
+                if fc_mismatch:
+                    print("[INFO] FC layer mismatch: loading all layers except the classifier (fc)")
+
+                    # Escludi fc.weight e fc.bias
+                    pretrained_dict = {
+                        k: v for k, v in checkpoint_dict.items()
+                        if k in model_dict and not k.startswith('fc.')
+                    }
+                    # Load the rest of the network, without fc. The fc should be randomly initialized and finetuned
+                    model_dict.update(pretrained_dict)
+                    self.model.load_state_dict(model_dict)
+                # If there is no size mismatch between the fc layers
+                else:
+                    # Normal loading of the full network
+                    self.model.load_state_dict(checkpoint_dict)
+
+                #self.model.load_state_dict(checkpoint['model_state_dict'])
+                print(f"[INFO] Loaded pretrained weights from {pretrained_path}")
             
-            # Gestione caricamento modello con classi di output diverse
-            model_dict = self.model.state_dict()
-            checkpoint_dict = checkpoint['model_state_dict']
-
-            # Verifica se è un caso speciale: dimensione del fc layer diversa
-            fc_weight_key = 'fc.weight'
-            fc_bias_key = 'fc.bias'
-
-            fc_mismatch = (
-                fc_weight_key in checkpoint_dict
-                and fc_bias_key in checkpoint_dict
-                and checkpoint_dict[fc_weight_key].shape[0] != config['model']['params']['num_classes']
-            )
-
-            if fc_mismatch:
-                print("[INFO] FC layer mismatch: loading all layers except the classifier (fc)")
-
-                # Escludi fc.weight e fc.bias
-                pretrained_dict = {
-                    k: v for k, v in checkpoint_dict.items()
-                    if k in model_dict and not k.startswith('fc.')
-                }
-            
-                model_dict.update(pretrained_dict)
-                self.model.load_state_dict(model_dict)
-
             else:
-                # Caricamento normale
-                self.model.load_state_dict(checkpoint_dict)
-
-            #self.model.load_state_dict(checkpoint['model_state_dict'])
-            print(f"[INFO] Loaded pretrained weights from {pretrained_path}")
+                filename = self.basename + 'last_checkpoint.pth'
+                self.checkpoint_path = os.path.join(self.output_dir, filename)
+                if os.path.exists(self.checkpoint_path):
+                    print(f"[INFO] Found checkpoint. Resuming training from {self.checkpoint_path}")
+                    self.load_checkpoint()
 
         if self.use_wandb:
             wandb.init(project=self.project_name, name=self.run_name, config={})
             wandb.watch(self.model)
             wandb.config.update({"Total_parameters": self.total_params})
 
-        # Auto-Resume
-        self.checkpoint_path = os.path.join(self.output_dir, 'last_checkpoint.pth')
-        if os.path.exists(self.checkpoint_path) and self.resume:
-            print(f"[INFO] Found checkpoint. Resuming training from {self.checkpoint_path}")
-            self.load_checkpoint()
 
     def maybe_freeze_backbone(self):
         # Setup modalità di freeze
@@ -146,9 +155,10 @@ class Trainer:
             'best_loss': self.best_loss
         }
         timestamp = time.strftime("%Y-%m-%d-%H-%M-%S")
-        filename = f'checkpoint_epoch_{epoch}_{timestamp}.pth'
+        filename = self.basename + f'checkpoint_epoch_{epoch}_{timestamp}.pth'
+        last_checkpoint_name = self.basename + 'last_checkpoint.pth'
         torch.save(checkpoint, os.path.join(self.output_dir, filename))
-        torch.save(checkpoint, os.path.join(self.output_dir, 'last_checkpoint.pth'))
+        torch.save(checkpoint, os.path.join(self.output_dir, last_checkpoint_name))
 
         self.cleanup_old_checkpoints(max_keep=5)
 
@@ -160,7 +170,7 @@ class Trainer:
             'epoch': epoch,
             'best_loss': self.best_loss
         }
-        filename = 'best_model.pth'
+        filename = self.basename + 'best_model.pth'
         torch.save(checkpoint, os.path.join(self.output_dir, filename))
 
     def load_checkpoint(self):
@@ -171,26 +181,6 @@ class Trainer:
             self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
         self.start_epoch = checkpoint['epoch'] + 1
         self.best_loss = checkpoint['best_loss']
-
-    def cleanup_old_checkpoints(self, max_keep=0):
-        """Delete old checkpoints, keeping only the last `max_keep`."""
-        if max_keep == 0:
-            return
-
-        checkpoint_files = sorted(
-            [f for f in os.listdir(self.output_dir)
-            if f.startswith('checkpoint_epoch') and f.endswith('.pth')],
-            key=lambda x: int(x.split('_')[2])  # Assuming filename like checkpoint_epoch_{epoch}_{timestamp}.pth
-        )
-
-        if len(checkpoint_files) > max_keep:
-            files_to_remove = checkpoint_files[:-max_keep]
-            for f in files_to_remove:
-                try:
-                    os.remove(os.path.join(self.output_dir, f))
-                    print(f"[INFO] Removed old checkpoint: {f}")
-                except Exception as e:
-                    print(f"[WARNING] Could not remove {f}: {e}")
 
     def count_parameters(self, model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -222,6 +212,33 @@ class Trainer:
                     for param in self.model.blocks[i].parameters():
                         param.requires_grad = True
     
+    def cleanup_old_checkpoints(self, max_keep=0):
+        """Delete old checkpoints, keeping only the last `max_keep`."""
+        if max_keep == 0:
+            return
+
+        checkpoint_files = [
+            f for f in os.listdir(self.output_dir)
+            if f.startswith(self.basename + 'checkpoint_epoch_') and f.endswith('.pth')
+        ]
+
+        # Estrai il numero di epoca da ciascun filename usando regex
+        def extract_epoch(filename):
+            match = re.search(r'checkpoint_epoch_(\d+)_', filename)
+            return int(match.group(1)) if match else -1
+
+        # Ordina i file in base all'epoca
+        checkpoint_files.sort(key=extract_epoch)
+
+        if len(checkpoint_files) > max_keep:
+            files_to_remove = checkpoint_files[:-max_keep]
+            for f in files_to_remove:
+                try:
+                    os.remove(os.path.join(self.output_dir, f))
+                    print(f"[INFO] Removed old checkpoint: {f}")
+                except Exception as e:
+                    print(f"[WARNING] Could not remove {f}: {e}")
+                    
     def train(self):
         train_losses, train_accuracies, val_losses, val_accuracies = [], [], [], []
         for epoch in range(self.start_epoch, self.max_epochs):
@@ -246,7 +263,7 @@ class Trainer:
             if val_loss < self.best_loss:
                 self.best_loss = val_loss
                 self.early_stop_counter = 0
-                self.save_as_best_model()
+                self.save_as_best_model(epoch)
             else:
                 self.early_stop_counter += 1
 
@@ -262,12 +279,6 @@ class Trainer:
         self.model.train()
         if self.progressive_unfreeze:
             self.unfreeze_layers_progressively(epoch)
-
-        if self.config.get('trainer', {}).get('freeze_backbone') == 'progressive':
-            if epoch in self.progressive_unfreeze_schedule:
-                print(f"[INFO] Unfreezing layers at epoch {epoch}")
-                for param in self.model.parameters():
-                    param.requires_grad = True
 
         running_loss = 0.0
         correct = 0

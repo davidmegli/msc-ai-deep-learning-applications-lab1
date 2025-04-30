@@ -12,7 +12,7 @@ trainer:
   patience: 10
   mixed_precision: True
   use_wandb: True
-  resume: False
+  resume: True
   pretrained_checkpoint: residualcnn_checkpoint.pth
   freeze_backbone: False
 
