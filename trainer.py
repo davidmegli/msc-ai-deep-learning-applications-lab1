@@ -16,6 +16,7 @@ from typing import Callable, Optional
 import re
 
 class Trainer:
+    """   Trainer class for managing the training and validation of a PyTorch model. """
     def __init__(
         self,
         model: torch.nn.Module,
@@ -34,6 +35,24 @@ class Trainer:
         run_name: Optional[str] = None,
         resume: bool = False,
         config: Optional[dict] = None):
+        """
+        Args:
+            model (torch.nn.Module): The model to train.
+            train_loader (DataLoader): DataLoader for training data.
+            val_loader (Optional[DataLoader]): DataLoader for validation data.
+            criterion (Callable): Loss function.
+            optimizer (torch.optim.Optimizer): Optimizer for training.
+            scheduler (Optional[torch.optim.lr_scheduler._LRScheduler]): Learning rate scheduler.
+            device (Optional[torch.device]): Device to run the training on (CPU or GPU).
+            output_dir (str): Directory to save outputs and checkpoints.
+            max_epochs (int): Maximum number of training epochs.
+            patience (int): Patience for early stopping.
+            mixed_precision (bool): Whether to use mixed precision training.
+            project_name (str): Name of the project for Weights & Biases.
+            use_wandb (bool): Whether to use Weights & Biases for logging.
+            run_name (Optional[str]): Name of the run for Weights & Biases.
+            resume (bool): Whether to resume training from a checkpoint.
+            config (Optional[dict]): Configuration dictionary with additional parameters."""
 
         self.model = model.to(device)
         self.train_loader = train_loader
@@ -126,6 +145,14 @@ class Trainer:
 
 
     def maybe_freeze_backbone(self):
+        """ Function to handle model backbone freezing based on configuration.
+
+        This function checks the configuration for the 'freeze_backbone' setting
+        and applies the appropriate freezing strategy to the model's parameters.
+        If 'freeze_backbone' is set to 'progressive', it will progressively unfreeze
+        layers based on the specified schedule. If it is set to True, it will freeze
+        all layers except the fully connected (fc) layer. If it is set to False or
+        None, it will not freeze any layers. """
         # Setup modalità di freeze
         freeze_mode = self.config.get('trainer', {}).get('freeze_backbone', False)
         if freeze_mode == "progressive":
@@ -163,6 +190,7 @@ class Trainer:
         self.cleanup_old_checkpoints(max_keep=5)
 
     def save_as_best_model(self, epoch):
+        """ Save the model as the best model """
         checkpoint = {
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
@@ -174,6 +202,7 @@ class Trainer:
         torch.save(checkpoint, os.path.join(self.output_dir, filename))
 
     def load_checkpoint(self):
+        """ Load model checkpoint from the specified path. """
         checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -183,6 +212,7 @@ class Trainer:
         self.best_loss = checkpoint['best_loss']
 
     def count_parameters(self, model):
+        """ Count the number of trainable parameters in the model. """
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
     
     def log_gradient_norms(self):
@@ -197,23 +227,36 @@ class Trainer:
             wandb.log({'gradient_norm': total_norm})
 
     def unfreeze_layers_progressively(self, epoch):
+        """ Unfreeze layers progressively based on the unfreeze schedule. 
+        
+        This function checks the current epoch against the unfreeze schedule and
+        progressively unfreezes the model's layers. It assumes that the model has
+        a 'blocks' attribute, which is a list of layers / blocks to be unfrozen.
+        Args:
+            epoch (int): The current training epoch.
+        """
         if not hasattr(self.model, 'blocks'):
             return
 
         unfreeze_epochs = self.unfreeze_schedule
         for e in unfreeze_epochs:
+            # If the current epoch matches an unfreeze epoch, unfreeze the corresponding layers
             if epoch == e:
                 idx = unfreeze_epochs.index(e)
-                # Sblocca i blocchi dalla fine (i più alti)
+                # Unfreeze blocks starting from the end (deepest layers)
                 blocks_to_unfreeze = 1
                 block_indices = list(range(len(self.model.blocks) - blocks_to_unfreeze - idx, len(self.model.blocks)))
                 print(f"[INFO] Unfreezing blocks at epoch {epoch}: {block_indices}")
                 for i in block_indices:
+                    # Unfreezing the parameters of the block
                     for param in self.model.blocks[i].parameters():
                         param.requires_grad = True
     
     def cleanup_old_checkpoints(self, max_keep=0):
-        """Delete old checkpoints, keeping only the last `max_keep`."""
+        """Delete old checkpoints, keeping only the last `max_keep`.
+        Args:
+            max_keep (int): Maximum number of checkpoints to keep. If 0, no checkpoints are deleted.
+        """
         if max_keep == 0:
             return
 
@@ -222,12 +265,12 @@ class Trainer:
             if f.startswith(self.basename + 'checkpoint_epoch_') and f.endswith('.pth')
         ]
 
-        # Estrai il numero di epoca da ciascun filename usando regex
+        # Extracting epoch number from each filename using regex
         def extract_epoch(filename):
             match = re.search(r'checkpoint_epoch_(\d+)_', filename)
             return int(match.group(1)) if match else -1
 
-        # Ordina i file in base all'epoca
+        # Sort files based on epoch
         checkpoint_files.sort(key=extract_epoch)
 
         if len(checkpoint_files) > max_keep:
@@ -240,6 +283,7 @@ class Trainer:
                     print(f"[WARNING] Could not remove {f}: {e}")
                     
     def train(self):
+        """ Main training loop for the model. """
         train_losses, train_accuracies, val_losses, val_accuracies = [], [], [], []
         for epoch in range(self.start_epoch, self.max_epochs):
             print(f"Epoch {epoch+1}/{self.max_epochs}")
@@ -276,7 +320,10 @@ class Trainer:
         return train_losses, train_accuracies, val_losses, val_accuracies
 
     def train_one_epoch(self, epoch):
+        """ Train the model for one epoch. This function is called by the main training loop for each epoch."""
         self.model.train()
+        # If progressive unfreezing is enabled, unfreeze layers based on the current epoch
+        # This allows for a gradual unfreezing of layers during training.
         if self.progressive_unfreeze:
             self.unfreeze_layers_progressively(epoch)
 
@@ -288,20 +335,20 @@ class Trainer:
         for inputs, targets in pbar:
             inputs, targets = inputs.to(self.device), targets.to(self.device)
 
-            self.optimizer.zero_grad()
-            outputs = self.model(inputs)
-            loss = self.criterion(outputs, targets)
-            loss.backward()
-            self.optimizer.step()
+            self.optimizer.zero_grad() # Resetting gradients
+            outputs = self.model(inputs) # Forward pass
+            loss = self.criterion(outputs, targets) # Compute loss
+            loss.backward() # Backward pass
+            self.optimizer.step() # Update parameters
 
-            running_loss += loss.item()
+            running_loss += loss.item() # Accumulate loss
 
-            _, predicted = torch.max(outputs, dim=1)
-            total += targets.size(0)
-            correct += (predicted == targets).sum().item()
+            _, predicted = torch.max(outputs, dim=1) # Get predictions
+            total += targets.size(0) # Total number of samples
+            correct += (predicted == targets).sum().item() # Count correct predictions
 
-        train_loss = running_loss / len(self.train_loader)
-        train_accuracy = correct / total
+        train_loss = running_loss / len(self.train_loader) # Average loss for the epoch
+        train_accuracy = correct / total # Accuracy for the epoch
 
         # VALIDATE
         val_loss, val_accuracy = self.validate(epoch)
@@ -341,6 +388,7 @@ class Trainer:
 
 
     def validate(self, epoch):
+        """ Validate the model on the validation set. """
         self.model.eval()
         val_loss = 0
         correct = 0
