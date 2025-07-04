@@ -79,6 +79,10 @@ class ResidualBlock(nn.Module):
             self.projection = nn.Linear(layer_sizes[0], layer_sizes[-1])
 
     def forward(self, x):
+        """ Forward pass with residual connection. 
+            The input is added to the output of the block.
+            If the input and output dimensions differ, a projection is applied.
+        """
         identity = x
         out = self.block(x)
         if self.need_projection:

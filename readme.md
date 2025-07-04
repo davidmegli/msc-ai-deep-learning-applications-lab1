@@ -13,17 +13,50 @@ The project is structured as follows:
 - ```dataset/utils.py```: contains the function to load datasets specified in the config file, and get training, validation and testing dataloaders.
 - ```configs``` folder: contains the .yaml configuration files, where you can choose: model to be used, dataset, optimizer, loss function, scheduler, each with its parameters, and the training settings.
 - ```output``` folder: will contain the outputs of the scripts.
+
 # Exercises
 Following the instructions you will be able to reproduce the results (hopefully).
 
 ## Exercise 1.1
 The "simple" MLP  is implemented in ```models/model.py```. I implemented the training pipeline in ```train.py``` and ```trainer.py```.
 
+SimpleMLP is a working version of a simple MLP with just 1 layer and fixed dimensions.
+Then I wrote the ParametrizedMLP to be able to instantiate a parametrized version of the MLP, and test different versions of it (deeper, shallow, larger, ...).
+
+I tried to write a training function as generalized as possible: the training function takes as input a configuration file, it reads the parameters and dinamically gets model, loss function, optimizer and scheduler calling the corresponding utility functions.
+
 ## Exercise 1.2
+
+### Usage
 1. Edit network and training configurations in "base_config.yaml". Set use_wandb to False if you are not into Weights & Biases.
 2. Run ```python run_experiments.py``` By default it will train a MLP and a Residual MLP, at different depths (2, 4, 8, 16, 32)
 3. Wait
 4. The script will save a "result.csv" file and 2 plot (.png) visualizing the comparison of loss and accuracy at different depths, for both networks. The files will be located in the "outputs/experiments" folder.
+
+### Description
+
+I first implemented the ResidualBlock class, a block that contains a parametrized number of fully connected layers, followed by activation functions, that during the forward pass provide as output the sum of the input and output of the network. I apply a projection (a linear layer) in case the input and output size differ.
+
+I then built a parametrized Residual MLP that takes as input the input, hidden and output sizes, plus the desired number of residual blocks. In this way it is possibile to vary the depth of the network by changing the number of residual blocks.
+
+### Results
+Here we can appreciate some of the results.
+As we can see, from depths of 2 to 8 the standard MLP reaches higher accuracies than the Residual MLP. 
+![MLP vs Residual MLP](assets/MLP_vs_ResidualMLP_acc.png)
+
+From the following plot we can see that the standard MLP is more unstable compared to the Residual MLP, which is expected.
+The standard MLP with depth 2 overfits on the training set.
+
+![MLP vs Residual MLP](assets/MLP_vs_ResidualMLP_loss.png)
+
+In the following plot we can see how the MLP, at depths of 16 and 32, is learning nothing, which is also expected, and is the reason why we use residual connections.
+
+![MLP vs Residual MLP](assets/MLP_vs_ResidualMLP_MLPDeep.png)
+
+Here we can see the accuracy of the Residual MLP at depth 16 and 32. The residual connections are improving the ability of the network to learn and maintain information even at greater depths. However we see that at the depth of 32 the accuracy still drops after a few epochs, meaning that for greater depths even residual connection are not enough.
+
+![MLP vs Residual MLP](assets/MLP_vs_ResidualMLP_ResMLPDeep.png)
+
 
 ## Exercise 1.3
 1. Edit network and training configurations in "base_cnn_config.yaml". Set use_wandb to False if needed.
