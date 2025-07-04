@@ -59,10 +59,18 @@ Here we can see the accuracy of the Residual MLP at depth 16 and 32. The residua
 
 
 ## Exercise 1.3
+
+### Usage
+
 1. Edit network and training configurations in "base_cnn_config.yaml". Set use_wandb to False if needed.
 2. Run ```python run_cnn_experiments.py```By default it will train a CNN and a Residual MLP uses ResNet BasicBlock, at different depths (2, 4, 8, 16, 32)
 3. Wait
 4. The script will save a "result.csv" file and 2 plot (.png) visualizing the comparison of loss and accuracy at different depths, for both networks. The files will be located in the "outputs/cnn_experiments" folder.
+
+### Description
+### Results
+
+![MLP vs Residual MLP](assets/CNN_vs_ResidualCNN.png)
 
 ## Exercise 2.1
 For this part I've used a pretrained ResidualCNN (width=64, depth=32) from the previous exercise
