@@ -6,8 +6,16 @@ import torch
 import torch.nn as nn
 from torchvision.models.resnet import BasicBlock
 
+
 class SimpleMLP(nn.Module):
+    """ A really simple MLP with 1 hidden layer and ReLU activation."""
     def __init__(self, input_dim=784, hidden_dim=256, num_classes=10):
+        """
+        Args:
+            input_dim (int): Input dimension, e.g., 784 for MNIST.
+            hidden_dim (int): Hidden layer dimension.
+            num_classes (int): Number of output classes, e.g., 10 for MNIST.
+        """
         super(SimpleMLP, self).__init__()
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -22,7 +30,14 @@ class SimpleMLP(nn.Module):
     
 
 class ParametrizedMLP(nn.Module):
+    """ Parametrized MLP with customizable layer sizes and activation functions. """
     def __init__(self, layer_sizes, activation='ReLU'):
+        """
+        Args:
+            layer_sizes (list): List of integers representing the sizes of each layer.
+                                E.g., [784, 256, 128, 10] for MNIST.
+            activation (str): Activation function to use. Options: 'ReLU', 'LeakyReLU', 'ELU', 'Sigmoid', 'Tanh'.
+        """
         super(ParametrizedMLP, self).__init__()
         layers = []
 
@@ -48,6 +63,7 @@ class ParametrizedMLP(nn.Module):
         return self.net(x.view(x.size(0), -1))
 
 class ResidualBlock(nn.Module):
+    """ Residual block with customizable layer sizes and activation functions. """
     def __init__(self, layer_sizes, activation='ReLU'):
         super(ResidualBlock, self).__init__()
         layers = []
@@ -57,7 +73,7 @@ class ResidualBlock(nn.Module):
                 layers.append(getattr(nn, activation)())
         self.block = nn.Sequential(*layers)
 
-        # Per la skip connection dobbiamo assicurarci che input e output abbiano stessa dimensione
+        # Checking if skip connection has the same input and output dimensions
         self.need_projection = layer_sizes[0] != layer_sizes[-1]
         if self.need_projection:
             self.projection = nn.Linear(layer_sizes[0], layer_sizes[-1])
@@ -70,7 +86,16 @@ class ResidualBlock(nn.Module):
         return out + identity
 
 class ResidualMLP(nn.Module):
+    """ Residual MLP with customizable number of residual blocks and activation functions. """
     def __init__(self, input_dim, hidden_dim, num_blocks, output_dim, activation='ReLU'):
+        """
+        Args:
+            input_dim (int): Input dimension, e.g., 784 for MNIST.
+            hidden_dim (int): Hidden layer dimension.
+            num_blocks (int): Number of residual blocks.
+            output_dim (int): Output dimension, e.g., 10 for MNIST.
+            activation (str): Activation function to use.
+        """
         super(ResidualMLP, self).__init__()
         self.input_layer = nn.Linear(input_dim, hidden_dim)
         self.blocks = nn.Sequential(*[
@@ -86,7 +111,17 @@ class ResidualMLP(nn.Module):
         return x
     
 class CustomCNN(nn.Module):
+    """ Customizable CNN architecture with optional residual connections."""
     def __init__(self, num_classes: int, depth: int, width: int, use_residual: bool = False, activation: str = "relu", input_channels: int = 3):
+        """
+        Args:
+            num_classes (int): Number of output classes.
+            depth (int): Number of convolutional blocks.
+            width (int): Number of filters in each convolutional block.
+            use_residual (bool): Whether to use residual connections.
+            activation (str): Activation function to use, e.g., "relu", "gelu".
+            input_channels (int): Number of input channels, e.g., 3 for RGB images.
+        """
         super(CustomCNN, self).__init__()
         
         assert depth >= 1, "Depth must be >= 1"
@@ -141,7 +176,16 @@ class CustomCNN(nn.Module):
         return x
 
 class SimpleCNN(CustomCNN):
+    """ Simple CNN without residual connections, built with CustomCNN base class. """
     def __init__(self, num_classes: int, depth: int, width: int, activation: str = "relu", input_channels: int = 3):
+        """
+        Args:
+            num_classes (int): Number of output classes.
+            depth (int): Number of convolutional blocks.
+            width (int): Number of filters in each convolutional block.
+            activation (str): Activation function to use, e.g., "relu".
+            input_channels (int): Number of input channels, e.g., 3 for RGB images.
+        """
         super().__init__(
             num_classes=num_classes,
             depth=depth,
@@ -152,7 +196,16 @@ class SimpleCNN(CustomCNN):
         )
 
 class ResidualCNN(CustomCNN):
+    """ Residual CNN built with CustomCNN base class, using residual connections. """
     def __init__(self, num_classes: int, depth: int, width: int, activation: str = "relu", input_channels: int = 3):
+        """
+        Args:
+            num_classes (int): Number of output classes.
+            depth (int): Number of convolutional blocks.
+            width (int): Number of filters in each convolutional block.
+            activation (str): Activation function to use, e.g., "relu".
+            input_channels (int): Number of input channels, e.g., 3 for RGB images.
+        """
         super().__init__(
             num_classes=num_classes,
             depth=depth,
