@@ -1,4 +1,4 @@
-## David Megli - Deep Learning Applications Lab 1
+# David Megli - Deep Learning Applications Lab 1
 
 This project is an implementation of Lab 1 for the Deep Learning Applications course in the Master's Degree in Artificial Intelligence at the University of Florence.
 
