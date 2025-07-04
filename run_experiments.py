@@ -24,6 +24,13 @@ results_file = os.path.join(output_dir, "results.csv")
 os.makedirs(output_dir, exist_ok=True)
 
 def run_training(model_name, depth, config_base, run_id):
+    """   Runs a training experiment for a specific model and depth.
+    Args:
+        model_name (str): Name of the model to train.
+        depth (int): Depth of the model (number of hidden layers).
+        config_base (dict): Base configuration dictionary.
+        run_id (str): Unique identifier for the run.
+    """
     config = copy.deepcopy(config_base)
     config['model']['name'] = model_name
 
@@ -74,6 +81,10 @@ def run_training(model_name, depth, config_base, run_id):
 
 
 def plot_results(results_path):
+    """ Reads the results CSV file and generates plots for each model.
+    Args:
+        results_path (str): Path to the CSV file containing results.
+    """
     df = pd.read_csv(results_path)
 
     # Eliminates rows with missing values

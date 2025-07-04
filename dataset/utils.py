@@ -12,6 +12,15 @@ from torch.utils.data import Subset
 import numpy as np
 
 def get_data_loaders(config):
+    """ Creates DataLoaders for training, validation, and test sets based on the configuration.
+    Args:
+        config (dict): Configuration dictionary containing dataset parameters.
+    Returns:
+        tuple: A tuple containing DataLoaders for training, validation, and test sets.
+    Raises:
+        ValueError: If the dataset name is unknown.
+    """
+    
     dataset_name = config['dataset']['name'].lower()
     batch_size = config['dataset']['batch_size']
     num_workers = config['dataset'].get('num_workers', 2)

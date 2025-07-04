@@ -11,6 +11,14 @@ from tqdm import tqdm
 from models.model import ResidualCNN
 
 def extract_features(model, dataloader, device):
+    """ Extracts features from the model for the given dataloader.
+    Args:
+        model (nn.Module): The model from which to extract features.
+        dataloader (DataLoader): The dataloader for the dataset.
+        device (torch.device): The device to run the model on (CPU or GPU).
+    Returns:
+        tuple: A tuple containing the extracted features and their corresponding labels.
+    """
     model.eval()
     all_features = []
     all_labels = []
@@ -28,6 +36,11 @@ def extract_features(model, dataloader, device):
     return all_features, all_labels
 
 def main(args):
+    """ Main function to extract features from CIFAR-100 dataset using a trained ResidualCNN model.
+    Args:
+        args (argparse.Namespace): Command line arguments.
+    """
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Dataset CIFAR-100
