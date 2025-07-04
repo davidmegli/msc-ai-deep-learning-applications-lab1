@@ -70,7 +70,7 @@ Here we can see the accuracy of the Residual MLP at depth 16 and 32. The residua
 ### Description
 ### Results
 
-![MLP vs Residual MLP](assets/CNN_vs_ResidualCNN.png)
+![CNN vs Residual CNN](assets/CNN_vs_ResidualCNN.png)
 
 ## Exercise 2.1
 For this part I've used a pretrained ResidualCNN (width=64, depth=32) from the previous exercise
@@ -88,3 +88,12 @@ python train.py --config configs/cnn_finetune_progressive_adam.yaml
 python train.py --config configs/cnn_finetune_progressive_SGD.yaml
 ```
  finetunes a ResidualCNN pretrained on CIFAR-10, on CIFAR-100, with 3 techniques (frozen backbone, full network finetuning, progressive block unfreezing) and 2 optimizers (Adam and SGD)
+
+
+
+Note: The CNN finetuned with progressive unfreezing with SGD and the one finetuned with frozen backbone with SGD are overlapped.
+![CNN Finetuning](assets/CNN_finetuning.png)
+ 
+ Here we can better appreciate the reason why the training stopped early for the CNN fully finetuned with Adam: the validation loss didn't improve for the pre-established number of epochs (patience).
+![CNN Finetuning](assets/CNN_finetuning_loss.png)
+ 
